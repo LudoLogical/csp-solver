@@ -1,8 +1,6 @@
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.Scanner;
+import java.util.*;
 
 @SuppressWarnings({"unused", "DuplicatedCode", "EnhancedSwitchMigration"})
 public class Main {
@@ -82,6 +80,74 @@ public class Main {
         }
 
     }
+
+    private static LinkedHashMap<String, Integer> solveCSPHelper(Set<String> unassignedVariables,
+                                                                 LinkedHashMap<String, Variable> variables,
+                                                                 LinkedHashMap<String, Integer> currentAssignment,
+                                                                 LinkedHashMap<String, ArrayList<Integer>> legalValuesRemaining) {
+
+        if (variables.size() == currentAssignment.size()) {
+            return currentAssignment;
+        }
+
+        // Variable Selection
+        ArrayList<String> candidateVars = new ArrayList<>();
+
+        // Heuristic 1: Most Constrained Variable
+        int maxNumLegalValuesRemaining = 0;
+        for (String variable : unassignedVariables) {
+            ArrayList<Integer> curLegalValuesRemaining = legalValuesRemaining.get(variable);
+            if (curLegalValuesRemaining.size() > maxNumLegalValuesRemaining) {
+                maxNumLegalValuesRemaining = curLegalValuesRemaining.size();
+                candidateVars.clear();
+            }
+            if (curLegalValuesRemaining.size() >= maxNumLegalValuesRemaining) {
+                candidateVars.add(variable);
+            }
+        }
+
+        // Heuristic 2: Most Constraining Variable
+        if (candidateVars.size() > 1) {
+            ArrayList<String> reducedCandidateVars = new ArrayList<>();
+            int maxConstraintsOnRemainingVariables = 0;
+            for (String variable : candidateVars) {
+                int curConstraintsOnRemainingVariables = 0;
+                for (Constraint c : variables.get(variable).constraints) {
+                    if (unassignedVariables.contains(c.rightVariable.name)) {
+                        curConstraintsOnRemainingVariables++;
+                    }
+                }
+                if (curConstraintsOnRemainingVariables > maxConstraintsOnRemainingVariables) {
+                    maxConstraintsOnRemainingVariables = curConstraintsOnRemainingVariables;
+                    reducedCandidateVars.clear();
+                }
+                if (curConstraintsOnRemainingVariables >= maxConstraintsOnRemainingVariables) {
+                    reducedCandidateVars.add(variable);
+                }
+            }
+            candidateVars = reducedCandidateVars;
+        }
+
+        Collections.sort(candidateVars); // Break further ties alphabetically
+        String chosenVar = candidateVars.get(0);
+
+        return null;
+
+    }
+
+    public static LinkedHashMap<String, Integer> solveCSP(LinkedHashMap<String, Variable> variables) {
+        LinkedHashMap<String, ArrayList<Integer>> legalValuesRemaining = new LinkedHashMap<>();
+        for (String curVar : variables.keySet()) {
+            ArrayList<Integer> curLegalValuesRemaining = new ArrayList<>(variables.keySet().size());
+            for (int value : variables.get(curVar).domain) {
+                curLegalValuesRemaining.add(value);
+            }
+            legalValuesRemaining.put(curVar, curLegalValuesRemaining);
+        }
+        return solveCSPHelper(variables.keySet(), variables, new LinkedHashMap<>(), legalValuesRemaining);
+    }
+
+
 
     public static void main(String[] args) {
 
