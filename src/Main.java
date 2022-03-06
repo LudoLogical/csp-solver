@@ -5,6 +5,8 @@ import java.util.*;
 @SuppressWarnings({"unused", "DuplicatedCode"})
 public class Main {
 
+    private static int currentOutputLine;
+
     enum ConstraintType {
         EQUAL,
         NOT_EQUAL,
@@ -170,6 +172,12 @@ public class Main {
                                                                  LinkedHashMap<String, ArrayList<Integer>> legalValuesRemaining) {
 
         if (variables.size() == currentAssignment.size()) {
+            StringBuilder report = new StringBuilder(currentOutputLine + ".\t");
+            for (String variable : currentAssignment.keySet()) {
+                report.append(variable).append("=").append(currentAssignment.get(variable)).append(", ");
+            }
+            // remove trailing ", "
+            System.out.println(report.substring(0, report.length() - 2) + "\tsolution");
             return currentAssignment;
         }
 
@@ -206,11 +214,11 @@ public class Main {
 
         int[] domainValueOrder = orderDomainValues(newLegalValuesRemaining);
 
-        for (int v : domainValueOrder) {
+        for (int valueToAssign : domainValueOrder) {
             boolean isConsistent = true;
             for (Constraint c : variables.get(variableToAssign).constraints) {
                 Integer rightValue = currentAssignment.get(c.rightVariable.name);
-                if (rightValue != null && c.isNotSatisfiedBy(v, rightValue)) {
+                if (rightValue != null && c.isNotSatisfiedBy(valueToAssign, rightValue)) {
                     isConsistent = false;
                     break;
                 }
@@ -218,12 +226,20 @@ public class Main {
             if (isConsistent) {
                 @SuppressWarnings("unchecked") LinkedHashMap<String, Integer> newCurrentAssignment
                         = (LinkedHashMap<String, Integer>) currentAssignment.clone();
-                newCurrentAssignment.put(variableToAssign, v);
+                newCurrentAssignment.put(variableToAssign, valueToAssign);
                 LinkedHashMap<String, Integer> result = solveCSPHelper(newUnassignedVariables,
-                        variables, newCurrentAssignment, newLegalValuesRemaining.get(v));
+                        variables, newCurrentAssignment, newLegalValuesRemaining.get(valueToAssign));
                 if (result != null) {
                     return result;
                 }
+            } else {
+                StringBuilder report = new StringBuilder(currentOutputLine + ".\t");
+                for (String variable : currentAssignment.keySet()) {
+                    report.append(variable).append("=").append(currentAssignment.get(variable)).append(", ");
+                }
+                report.append(variableToAssign).append("=").append(valueToAssign).append("\tfailure");
+                System.out.println(report);
+                currentOutputLine++;
             }
         }
 
@@ -242,6 +258,7 @@ public class Main {
             legalValuesRemaining.put(curVar, curLegalValuesRemaining);
         }
 
+        currentOutputLine = 1;
         return solveCSPHelper(variables.keySet(), variables, new LinkedHashMap<>(), legalValuesRemaining);
 
     }
@@ -312,7 +329,9 @@ public class Main {
 
         System.out.println(variables);
         System.out.println();
-        System.out.println(solveCSP(variables));
+        LinkedHashMap<String, Integer> solution = solveCSP(variables);
+        System.out.println();
+        System.out.println(solution);
 
     }
 
