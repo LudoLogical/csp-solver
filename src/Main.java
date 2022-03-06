@@ -2,7 +2,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
 
-@SuppressWarnings({"unused", "DuplicatedCode", "EnhancedSwitchMigration"})
+@SuppressWarnings({"unused", "DuplicatedCode"})
 public class Main {
 
     enum ConstraintType {
@@ -12,8 +12,16 @@ public class Main {
         GREATER_THAN
     }
 
-    @SuppressWarnings("EnhancedSwitchMigration")
-    record Constraint(ConstraintType type, Variable rightVariable) {
+    static class Constraint {
+
+        private final ConstraintType type;
+        public final Variable rightVariable;
+
+        public Constraint(ConstraintType type, Variable rightVariable) {
+            this.type = type;
+            this.rightVariable = rightVariable;
+        }
+
         public boolean satisfiedBy(int leftValue, int rightValue) {
             switch (this.type) {
                 case EQUAL:
@@ -28,6 +36,7 @@ public class Main {
                     return false; // should never get here
             }
         }
+
         public String toString() {
             switch (this.type) {
                 case EQUAL:
@@ -42,6 +51,7 @@ public class Main {
                     return "Something went wrong."; // should never get here
             }
         }
+
     }
 
     static class Variable {
@@ -81,14 +91,9 @@ public class Main {
 
     }
 
-    private static LinkedHashMap<String, Integer> solveCSPHelper(Set<String> unassignedVariables,
-                                                                 LinkedHashMap<String, Variable> variables,
-                                                                 LinkedHashMap<String, Integer> currentAssignment,
-                                                                 LinkedHashMap<String, ArrayList<Integer>> legalValuesRemaining) {
-
-        if (variables.size() == currentAssignment.size()) {
-            return currentAssignment;
-        }
+    private static String selectUnassignedVariable(Set<String> unassignedVariables,
+                                                   LinkedHashMap<String, Variable> variables,
+                                                   LinkedHashMap<String, ArrayList<Integer>> legalValuesRemaining) {
 
         // Variable Selection
         ArrayList<String> candidateVars = new ArrayList<>();
@@ -129,7 +134,20 @@ public class Main {
         }
 
         Collections.sort(candidateVars); // Break further ties alphabetically
-        String chosenVar = candidateVars.get(0);
+        return candidateVars.get(0);
+
+    }
+
+    private static LinkedHashMap<String, Integer> solveCSPHelper(Set<String> unassignedVariables,
+                                                                 LinkedHashMap<String, Variable> variables,
+                                                                 LinkedHashMap<String, Integer> currentAssignment,
+                                                                 LinkedHashMap<String, ArrayList<Integer>> legalValuesRemaining) {
+
+        if (variables.size() == currentAssignment.size()) {
+            return currentAssignment;
+        }
+
+        String variableToAssign = selectUnassignedVariable(unassignedVariables, variables, legalValuesRemaining);
 
         return null;
 
