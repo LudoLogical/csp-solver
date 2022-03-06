@@ -95,7 +95,6 @@ public class Main {
                                                    LinkedHashMap<String, Variable> variables,
                                                    LinkedHashMap<String, ArrayList<Integer>> legalValuesRemaining) {
 
-        // Variable Selection
         ArrayList<String> candidateVars = new ArrayList<>();
 
         // Heuristic 1: Most Constrained Variable
@@ -138,6 +137,35 @@ public class Main {
 
     }
 
+    // Sort in decreasing order of total number of newLegalValuesRemaining, smaller key breaks ties
+    private static int[] orderDomainValues(LinkedHashMap<Integer, LinkedHashMap<String, ArrayList<Integer>>> newLegalValuesRemaining) {
+
+        ArrayList<Map.Entry<Integer, LinkedHashMap<String, ArrayList<Integer>>>> sorted
+                = new ArrayList<>(newLegalValuesRemaining.entrySet());
+        sorted.sort((o1, o2) -> {
+            int o1Sum = 0;
+            int o2Sum = 0;
+            for (String s : o1.getValue().keySet()) {
+                o1Sum += o1.getValue().get(s).size();
+            }
+            for (String s : o2.getValue().keySet()) {
+                o1Sum += o2.getValue().get(s).size();
+            }
+            return o2Sum - o1Sum;
+        });
+
+        // Enforce tie-breaking procedure: https://stackoverflow.com/questions/5164902/sorting-a-part-of-java-arraylist
+
+        int[] outputList = new int[sorted.size()];
+        int i = 0;
+        for (Map.Entry<Integer, LinkedHashMap<String, ArrayList<Integer>>> entry : sorted) {
+            outputList[i] = entry.getKey();
+            i++;
+        }
+        return outputList;
+
+    }
+
     private static LinkedHashMap<String, Integer> solveCSPHelper(Set<String> unassignedVariables,
                                                                  LinkedHashMap<String, Variable> variables,
                                                                  LinkedHashMap<String, Integer> currentAssignment,
@@ -148,6 +176,40 @@ public class Main {
         }
 
         String variableToAssign = selectUnassignedVariable(unassignedVariables, variables, legalValuesRemaining);
+
+        LinkedHashMap<Integer, LinkedHashMap<String, ArrayList<Integer>>> newLegalValuesRemaining = new LinkedHashMap<>();
+        for (int valueToAssign : legalValuesRemaining.get(variableToAssign)) {
+            LinkedHashMap<String, ArrayList<Integer>> newLegalValuesRemainingForValueToAssign = new LinkedHashMap<>();
+            for (String otherUnassignedVariable : unassignedVariables) {
+                if (variableToAssign.equals(otherUnassignedVariable)) {
+                    continue;
+                }
+                ArrayList<Integer> newLegalValuesRemainingForOther = new ArrayList<>();
+                for (int valueToCheck : legalValuesRemaining.get(otherUnassignedVariable)) {
+                    boolean acceptable = true;
+                    for (Constraint c : variables.get(otherUnassignedVariable).constraints) {
+                        if (c.rightVariable.name.equals(variableToAssign) && !c.satisfiedBy(valueToCheck, valueToAssign)) {
+                            acceptable = false;
+                            break;
+                        }
+                    }
+                    if (acceptable) {
+                        newLegalValuesRemainingForOther.add(valueToCheck);
+                    }
+                }
+                newLegalValuesRemainingForValueToAssign.put(otherUnassignedVariable, newLegalValuesRemainingForOther);
+            }
+            newLegalValuesRemaining.put(valueToAssign, newLegalValuesRemainingForValueToAssign);
+        }
+
+        int[] domainValueOrder = orderDomainValues(newLegalValuesRemaining);
+
+        for (int v : domainValueOrder) {
+            // if v is consistent with currentAssignment
+                // make new currentAssignment with v added
+                // returnedAssignment = recurse...
+                // if returnedAssignment != null then return it
+        }
 
         return null;
 
