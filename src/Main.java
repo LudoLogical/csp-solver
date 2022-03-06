@@ -22,18 +22,18 @@ public class Main {
             this.rightVariable = rightVariable;
         }
 
-        public boolean satisfiedBy(int leftValue, int rightValue) {
+        public boolean isNotSatisfiedBy(int leftValue, int rightValue) {
             switch (this.type) {
                 case EQUAL:
-                    return leftValue == rightValue;
-                case NOT_EQUAL:
                     return leftValue != rightValue;
+                case NOT_EQUAL:
+                    return leftValue == rightValue;
                 case LESS_THAN:
-                    return leftValue < rightValue;
+                    return leftValue >= rightValue;
                 case GREATER_THAN:
-                    return leftValue > rightValue;
+                    return leftValue <= rightValue;
                 default:
-                    return false; // should never get here
+                    return true; // should never get here
             }
         }
 
@@ -143,18 +143,16 @@ public class Main {
         ArrayList<Map.Entry<Integer, LinkedHashMap<String, ArrayList<Integer>>>> sorted
                 = new ArrayList<>(newLegalValuesRemaining.entrySet());
         sorted.sort((o1, o2) -> {
-            int o1Sum = 0;
-            int o2Sum = 0;
+            int sum = 0; // want o2Sum - o1Sum
             for (String s : o1.getValue().keySet()) {
-                o1Sum += o1.getValue().get(s).size();
+                sum -= o1.getValue().get(s).size();
             }
             for (String s : o2.getValue().keySet()) {
-                o1Sum += o2.getValue().get(s).size();
+                sum += o2.getValue().get(s).size();
             }
-            return o2Sum - o1Sum;
+            // Smaller key breaks ties
+            return sum == 0 ? o1.getKey() - o2.getKey() : sum;
         });
-
-        // Enforce tie-breaking procedure: https://stackoverflow.com/questions/5164902/sorting-a-part-of-java-arraylist
 
         int[] outputList = new int[sorted.size()];
         int i = 0;
@@ -188,7 +186,7 @@ public class Main {
                 for (int valueToCheck : legalValuesRemaining.get(otherUnassignedVariable)) {
                     boolean acceptable = true;
                     for (Constraint c : variables.get(otherUnassignedVariable).constraints) {
-                        if (c.rightVariable.name.equals(variableToAssign) && !c.satisfiedBy(valueToCheck, valueToAssign)) {
+                        if (c.rightVariable.name.equals(variableToAssign) && c.isNotSatisfiedBy(valueToCheck, valueToAssign)) {
                             acceptable = false;
                             break;
                         }
@@ -202,13 +200,31 @@ public class Main {
             newLegalValuesRemaining.put(valueToAssign, newLegalValuesRemainingForValueToAssign);
         }
 
+        Set<String> newUnassignedVariables = new HashSet<>(unassignedVariables);
+        newUnassignedVariables.remove(variableToAssign);
+
+
         int[] domainValueOrder = orderDomainValues(newLegalValuesRemaining);
 
         for (int v : domainValueOrder) {
-            // if v is consistent with currentAssignment
-                // make new currentAssignment with v added
-                // returnedAssignment = recurse...
-                // if returnedAssignment != null then return it
+            boolean isConsistent = true;
+            for (Constraint c : variables.get(variableToAssign).constraints) {
+                Integer rightValue = currentAssignment.get(c.rightVariable.name);
+                if (rightValue != null && c.isNotSatisfiedBy(v, rightValue)) {
+                    isConsistent = false;
+                    break;
+                }
+            }
+            if (isConsistent) {
+                @SuppressWarnings("unchecked") LinkedHashMap<String, Integer> newCurrentAssignment
+                        = (LinkedHashMap<String, Integer>) currentAssignment.clone();
+                newCurrentAssignment.put(variableToAssign, v);
+                LinkedHashMap<String, Integer> result = solveCSPHelper(newUnassignedVariables,
+                        variables, newCurrentAssignment, newLegalValuesRemaining.get(v));
+                if (result != null) {
+                    return result;
+                }
+            }
         }
 
         return null;
@@ -216,6 +232,7 @@ public class Main {
     }
 
     public static LinkedHashMap<String, Integer> solveCSP(LinkedHashMap<String, Variable> variables) {
+
         LinkedHashMap<String, ArrayList<Integer>> legalValuesRemaining = new LinkedHashMap<>();
         for (String curVar : variables.keySet()) {
             ArrayList<Integer> curLegalValuesRemaining = new ArrayList<>(variables.keySet().size());
@@ -224,10 +241,10 @@ public class Main {
             }
             legalValuesRemaining.put(curVar, curLegalValuesRemaining);
         }
+
         return solveCSPHelper(variables.keySet(), variables, new LinkedHashMap<>(), legalValuesRemaining);
+
     }
-
-
 
     public static void main(String[] args) {
 
@@ -294,6 +311,8 @@ public class Main {
         scan.close();
 
         System.out.println(variables);
+        System.out.println();
+        System.out.println(solveCSP(variables));
 
     }
 
