@@ -100,14 +100,14 @@ public class Main {
         ArrayList<String> candidateVars = new ArrayList<>();
 
         // Heuristic 1: Most Constrained Variable
-        int maxNumLegalValuesRemaining = 0;
+        int minNumLegalValuesRemaining = Integer.MAX_VALUE;
         for (String variable : unassignedVariables) {
             ArrayList<Integer> curLegalValuesRemaining = legalValuesRemaining.get(variable);
-            if (curLegalValuesRemaining.size() > maxNumLegalValuesRemaining) {
-                maxNumLegalValuesRemaining = curLegalValuesRemaining.size();
+            if (curLegalValuesRemaining.size() < minNumLegalValuesRemaining) {
+                minNumLegalValuesRemaining = curLegalValuesRemaining.size();
                 candidateVars.clear();
             }
-            if (curLegalValuesRemaining.size() >= maxNumLegalValuesRemaining) {
+            if (curLegalValuesRemaining.size() <= minNumLegalValuesRemaining) {
                 candidateVars.add(variable);
             }
         }
