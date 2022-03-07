@@ -5,7 +5,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-@SuppressWarnings({"unused", "DuplicatedCode", "EnhancedSwitchMigration"})
 public class Main {
 
     private static int currentOutputLine;
@@ -17,7 +16,6 @@ public class Main {
         GREATER_THAN
     }
 
-    @SuppressWarnings("ClassCanBeRecord")
     static class Constraint {
 
         private final ConstraintType type;
@@ -280,10 +278,22 @@ public class Main {
         for (int valueToAssign : domainValueOrder) {
             boolean isConsistent = true;
             for (Constraint c : variables.get(variableToAssign).constraints) {
-                Integer rightValue = currentAssignment.get(c.rightVariable.name);
-                if (rightValue != null && c.isNotSatisfiedBy(valueToAssign, rightValue)) {
+                if (currentAssignment.containsKey(c.rightVariable.name)) {
+                    if (c.isNotSatisfiedBy(valueToAssign, currentAssignment.get(c.rightVariable.name))) {
+                        isConsistent = false;
+                        break;
+                    }
+                } else if (legalValuesRemaining != null) {
                     isConsistent = false;
-                    break;
+                    for (int v : c.rightVariable.domain) {
+                        if (!c.isNotSatisfiedBy(valueToAssign, v)) {
+                            isConsistent = true;
+                            break;
+                        }
+                    }
+                    if (!isConsistent) {
+                        break;
+                    }
                 }
             }
             if (isConsistent) {
