@@ -1,8 +1,11 @@
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
-@SuppressWarnings({"unused", "DuplicatedCode"})
+@SuppressWarnings({"unused", "DuplicatedCode", "EnhancedSwitchMigration"})
 public class Main {
 
     private static int currentOutputLine;
@@ -14,6 +17,7 @@ public class Main {
         GREATER_THAN
     }
 
+    @SuppressWarnings("ClassCanBeRecord")
     static class Constraint {
 
         private final ConstraintType type;
@@ -139,11 +143,74 @@ public class Main {
 
     }
 
-    // Sort in decreasing order of total number of newLegalValuesRemaining, smaller key breaks ties
-    private static int[] orderDomainValues(LinkedHashMap<Integer, LinkedHashMap<String, ArrayList<Integer>>> newLegalValuesRemaining) {
+    private static LinkedHashMap<Integer, LinkedHashMap<String, ArrayList<Integer>>> getLegalValuesRemainingFutureMap(
+            Set<String> newUnassignedVariables,
+            LinkedHashMap<String, Variable> variables,
+            String variableToAssign,
+            LinkedHashMap<String, ArrayList<Integer>> oldLegalValuesRemaining
+    ) {
+
+        LinkedHashMap<Integer, LinkedHashMap<String, ArrayList<Integer>>> newLegalValuesRemaining = new LinkedHashMap<>();
+        for (int assignableValue : oldLegalValuesRemaining.get(variableToAssign)) {
+            LinkedHashMap<String, ArrayList<Integer>> newLegalValuesRemainingForAssignableValue = new LinkedHashMap<>();
+            for (String otherUnassignedVariable : newUnassignedVariables) {
+                ArrayList<Integer> newLegalValuesRemainingForOther = new ArrayList<>();
+                for (int valueToCheck : oldLegalValuesRemaining.get(otherUnassignedVariable)) {
+                    boolean acceptable = true;
+                    for (Constraint c : variables.get(otherUnassignedVariable).constraints) {
+                        if (c.rightVariable.name.equals(variableToAssign) && c.isNotSatisfiedBy(valueToCheck, assignableValue)) {
+                            acceptable = false;
+                            break;
+                        }
+                    }
+                    if (acceptable) {
+                        newLegalValuesRemainingForOther.add(valueToCheck);
+                    }
+                }
+                newLegalValuesRemainingForAssignableValue.put(otherUnassignedVariable, newLegalValuesRemainingForOther);
+            }
+            newLegalValuesRemaining.put(assignableValue, newLegalValuesRemainingForAssignableValue);
+        }
+
+        return newLegalValuesRemaining;
+
+    }
+
+    private static LinkedHashMap<Integer, LinkedHashMap<String, ArrayList<Integer>>> applyLeastConstrainingValueWithoutFC(
+            Set<String> newUnassignedVariables,
+            LinkedHashMap<String, Variable> variables,
+            String variableToAssign
+    ) {
+
+        LinkedHashMap<Integer, LinkedHashMap<String, ArrayList<Integer>>> acceptableValues = new LinkedHashMap<>();
+        for (int assignableValue : variables.get(variableToAssign).domain) {
+            LinkedHashMap<String, ArrayList<Integer>> acceptableValuesForAssignableValue = new LinkedHashMap<>();
+            for (String otherVariable : newUnassignedVariables) {
+                Stream<Integer> boxedStream = IntStream.of(variables.get(otherVariable).domain).boxed();
+                ArrayList<Integer> acceptableValuesForOtherVariable = boxedStream.collect(Collectors.toCollection(ArrayList::new));
+                for (Constraint c : variables.get(otherVariable).constraints) {
+                    if (c.rightVariable.name.equals(variableToAssign)) {
+                        for (int valueToCheck : variables.get(otherVariable).domain) {
+                            if (c.isNotSatisfiedBy(valueToCheck, assignableValue)) {
+                                acceptableValuesForOtherVariable.remove(Integer.valueOf(valueToCheck));
+                            }
+                        }
+                    }
+                }
+                acceptableValuesForAssignableValue.put(otherVariable, acceptableValuesForOtherVariable);
+            }
+            acceptableValues.put(assignableValue, acceptableValuesForAssignableValue);
+        }
+
+        return acceptableValues;
+
+    }
+
+    // Sort in decreasing order of total number of legal/acceptable values, smaller key breaks ties
+    private static int[] orderDomainValuesFromFutureMap(LinkedHashMap<Integer, LinkedHashMap<String, ArrayList<Integer>>> futureMap) {
 
         ArrayList<Map.Entry<Integer, LinkedHashMap<String, ArrayList<Integer>>>> sorted
-                = new ArrayList<>(newLegalValuesRemaining.entrySet());
+                = new ArrayList<>(futureMap.entrySet());
         sorted.sort((o1, o2) -> {
             int sum = 0; // want o2Sum - o1Sum
             for (String s : o1.getValue().keySet()) {
@@ -169,7 +236,8 @@ public class Main {
     private static LinkedHashMap<String, Integer> solveCSPHelper(Set<String> unassignedVariables,
                                                                  LinkedHashMap<String, Variable> variables,
                                                                  LinkedHashMap<String, Integer> currentAssignment,
-                                                                 LinkedHashMap<String, ArrayList<Integer>> legalValuesRemaining) {
+                                                                 LinkedHashMap<String, ArrayList<Integer>> legalValuesRemaining,
+                                                                 boolean useForwardChecking) {
 
         if (variables.size() == currentAssignment.size()) {
             StringBuilder report = new StringBuilder(currentOutputLine + ".\t");
@@ -181,38 +249,21 @@ public class Main {
             return currentAssignment;
         }
 
-        String variableToAssign = selectUnassignedVariable(unassignedVariables, variables, legalValuesRemaining);
+        // If FC: terminate search when any variable has no legal values
 
-        LinkedHashMap<Integer, LinkedHashMap<String, ArrayList<Integer>>> newLegalValuesRemaining = new LinkedHashMap<>();
-        for (int valueToAssign : legalValuesRemaining.get(variableToAssign)) {
-            LinkedHashMap<String, ArrayList<Integer>> newLegalValuesRemainingForValueToAssign = new LinkedHashMap<>();
-            for (String otherUnassignedVariable : unassignedVariables) {
-                if (variableToAssign.equals(otherUnassignedVariable)) {
-                    continue;
-                }
-                ArrayList<Integer> newLegalValuesRemainingForOther = new ArrayList<>();
-                for (int valueToCheck : legalValuesRemaining.get(otherUnassignedVariable)) {
-                    boolean acceptable = true;
-                    for (Constraint c : variables.get(otherUnassignedVariable).constraints) {
-                        if (c.rightVariable.name.equals(variableToAssign) && c.isNotSatisfiedBy(valueToCheck, valueToAssign)) {
-                            acceptable = false;
-                            break;
-                        }
-                    }
-                    if (acceptable) {
-                        newLegalValuesRemainingForOther.add(valueToCheck);
-                    }
-                }
-                newLegalValuesRemainingForValueToAssign.put(otherUnassignedVariable, newLegalValuesRemainingForOther);
-            }
-            newLegalValuesRemaining.put(valueToAssign, newLegalValuesRemainingForValueToAssign);
-        }
+        String variableToAssign = selectUnassignedVariable(unassignedVariables, variables, legalValuesRemaining);
 
         Set<String> newUnassignedVariables = new HashSet<>(unassignedVariables);
         newUnassignedVariables.remove(variableToAssign);
 
-
-        int[] domainValueOrder = orderDomainValues(newLegalValuesRemaining);
+        LinkedHashMap<Integer, LinkedHashMap<String, ArrayList<Integer>>> futureMap;
+        if (useForwardChecking) {
+            futureMap = getLegalValuesRemainingFutureMap(newUnassignedVariables, variables,
+                    variableToAssign, legalValuesRemaining);
+        } else {
+            futureMap = applyLeastConstrainingValueWithoutFC(newUnassignedVariables, variables, variableToAssign);
+        }
+        int[] domainValueOrder = orderDomainValuesFromFutureMap(futureMap);
 
         for (int valueToAssign : domainValueOrder) {
             boolean isConsistent = true;
@@ -227,8 +278,15 @@ public class Main {
                 @SuppressWarnings("unchecked") LinkedHashMap<String, Integer> newCurrentAssignment
                         = (LinkedHashMap<String, Integer>) currentAssignment.clone();
                 newCurrentAssignment.put(variableToAssign, valueToAssign);
-                LinkedHashMap<String, Integer> result = solveCSPHelper(newUnassignedVariables,
-                        variables, newCurrentAssignment, newLegalValuesRemaining.get(valueToAssign));
+                LinkedHashMap<String, ArrayList<Integer>> newLegalValuesRemaining;
+                if (useForwardChecking) {
+                    newLegalValuesRemaining = futureMap.get(valueToAssign);
+                } else {
+                    newLegalValuesRemaining = getLegalValuesRemainingFutureMap(newUnassignedVariables, variables,
+                            variableToAssign, legalValuesRemaining).get(valueToAssign);
+                }
+                LinkedHashMap<String, Integer> result = solveCSPHelper(newUnassignedVariables, variables,
+                        newCurrentAssignment, newLegalValuesRemaining, useForwardChecking);
                 if (result != null) {
                     return result;
                 }
@@ -247,7 +305,8 @@ public class Main {
 
     }
 
-    public static LinkedHashMap<String, Integer> solveCSP(LinkedHashMap<String, Variable> variables) {
+    public static LinkedHashMap<String, Integer> solveCSP(LinkedHashMap<String, Variable> variables,
+                                                          boolean useForwardChecking) {
 
         LinkedHashMap<String, ArrayList<Integer>> legalValuesRemaining = new LinkedHashMap<>();
         for (String curVar : variables.keySet()) {
@@ -259,7 +318,7 @@ public class Main {
         }
 
         currentOutputLine = 1;
-        return solveCSPHelper(variables.keySet(), variables, new LinkedHashMap<>(), legalValuesRemaining);
+        return solveCSPHelper(variables.keySet(), variables, new LinkedHashMap<>(), legalValuesRemaining, useForwardChecking);
 
     }
 
@@ -329,7 +388,7 @@ public class Main {
 
         System.out.println(variables);
         System.out.println();
-        LinkedHashMap<String, Integer> solution = solveCSP(variables);
+        LinkedHashMap<String, Integer> solution = solveCSP(variables, false);
         System.out.println();
         System.out.println(solution);
 
