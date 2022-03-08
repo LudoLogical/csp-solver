@@ -117,20 +117,6 @@ public class Main {
     }
 
     /**
-     * Prints outcome information in accordance with the project specification.
-     * @param currentAssignment the assignment of values to Variables at the time the outcome occurred
-     * @param outcome the outcome that should be reported via System.out.println()
-     */
-    private static void reportOutcome(LinkedHashMap<String, Integer> currentAssignment, String outcome) {
-        StringBuilder report = new StringBuilder(currentOutputLine + ".\t");
-        for (String variable : currentAssignment.keySet()) {
-            report.append(variable).append("=").append(currentAssignment.get(variable)).append(", ");
-        }
-        System.out.println(report.substring(0, report.length() - 2) + "\t" + outcome);
-        currentOutputLine++;
-    }
-
-    /**
      * Uses the Most Constrained Variable and Most Constraining Variable heuristics, and alphabetic order
      * when breaking ties, to choose a Variable for assignment from the set of unassignedVariables.
      * @param unassignedVariables the Set of Variables from this CSP that do not currently have values assigned to them
@@ -362,7 +348,12 @@ public class Main {
 
         // If currentAssignment is complete, report as much and return it
         if (variables.size() == currentAssignment.size()) {
-            reportOutcome(currentAssignment, "solution");
+            StringBuilder report = new StringBuilder(currentOutputLine + ".\t");
+            for (String variable : currentAssignment.keySet()) {
+                report.append(variable).append("=").append(currentAssignment.get(variable)).append(", ");
+            }
+            // remove trailing ", "
+            System.out.println(report.substring(0, report.length() - 2) + "\tsolution");
             return currentAssignment;
         }
 
@@ -441,7 +432,15 @@ public class Main {
 
             // If there are objections to this assignment going through, report and return failure
             } else {
-                reportOutcome(currentAssignment, "failure");
+
+                StringBuilder report = new StringBuilder(currentOutputLine + ".\t");
+                for (String variable : currentAssignment.keySet()) {
+                    report.append(variable).append("=").append(currentAssignment.get(variable)).append(", ");
+                }
+                report.append(variableToAssign).append("=").append(valueToAssign).append("\tfailure");
+                System.out.println(report);
+                currentOutputLine++;
+
             }
 
         }
