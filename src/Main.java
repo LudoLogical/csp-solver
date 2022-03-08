@@ -348,12 +348,12 @@ public class Main {
 
         // If currentAssignment is complete, report as much and return it
         if (variables.size() == currentAssignment.size()) {
-            StringBuilder report = new StringBuilder(currentOutputLine + ".\t");
+            StringBuilder report = new StringBuilder(currentOutputLine + ". ");
             for (String variable : currentAssignment.keySet()) {
                 report.append(variable).append("=").append(currentAssignment.get(variable)).append(", ");
             }
             // remove trailing ", "
-            System.out.println(report.substring(0, report.length() - 2) + "\tsolution");
+            System.out.println(report.substring(0, report.length() - 2) + "  solution");
             return currentAssignment;
         }
 
@@ -433,11 +433,11 @@ public class Main {
             // If there are objections to this assignment going through, report and return failure
             } else {
 
-                StringBuilder report = new StringBuilder(currentOutputLine + ".\t");
+                StringBuilder report = new StringBuilder(currentOutputLine + ". ");
                 for (String variable : currentAssignment.keySet()) {
                     report.append(variable).append("=").append(currentAssignment.get(variable)).append(", ");
                 }
-                report.append(variableToAssign).append("=").append(valueToAssign).append("\tfailure");
+                report.append(variableToAssign).append("=").append(valueToAssign).append("  failure");
                 System.out.println(report);
                 currentOutputLine++;
 
